@@ -1,5 +1,5 @@
 import numpy as np
-
+import elastica as ea
 
 # Sigmoid activation functions
 class SigmoidActivationLongitudinalMuscles:
@@ -108,3 +108,27 @@ class LocalActivation:
         fiber_activation = self.activation_level * factor
         if fiber_activation > 0.0:
             activation[self.start_idx : self.end_idx] = fiber_activation
+
+
+
+
+class OctopusArmCallBack(ea.CallBackBaseClass):
+    """
+    Call back function for octopus arm
+    """
+
+    def __init__(self, step_skip: int, callback_params: dict):
+        ea.CallBackBaseClass.__init__(self)
+        self.every = step_skip
+        self.callback_params = callback_params
+
+    def make_callback(self, system, time, current_step: int):
+        if current_step % self.every == 0:
+            self.callback_params["time"].append(time)
+            self.callback_params["step"].append(current_step)
+            self.callback_params["position"].append(system.position_collection.copy())
+            self.callback_params["velocity"].append(system.velocity_collection.copy())
+            self.callback_params["radius"].append(system.radius.copy())
+            self.callback_params["external_forces"].append(system.external_forces.copy())
+
+            return

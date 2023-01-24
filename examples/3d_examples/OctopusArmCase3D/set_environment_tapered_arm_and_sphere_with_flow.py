@@ -2,6 +2,7 @@ from collections import defaultdict
 import numpy as np
 import elastica as ea
 from elastica._calculus import _isnan_check
+from arm_functions_3d import OctopusArmCallBack
 
 from coomm.actuations.muscles import (
     force_length_weight_poly,
@@ -24,7 +25,6 @@ class BaseSimulator(
     ea.Damping,
 ):
     pass
-
 
 class ArmEnvironment:
     def __init__(
@@ -49,14 +49,14 @@ class ArmEnvironment:
     ) -> list[ea.CosseratRod]:
         return [self.shearable_rod]
 
-    def set_arm(self, E: float, rod: ea.CosseratRod) -> None:
-        self.set_rod(E, rod)
+    def set_arm(self, E: float, density:float, rod: ea.CosseratRod) -> None:
+        self.set_rod(E, density, rod)
         self.set_muscles(self.shearable_rod)
 
-    def setup(self, E: float, rod: ea.CosseratRod) -> None:
-        self.set_arm(E, rod)
+    def setup(self, E: float, density:float, rod: ea.CosseratRod) -> None:
+        self.set_arm(E, density, rod)
 
-    def set_rod(self, E: float, rod: ea.CosseratRod) -> None:
+    def set_rod(self, E: float, density:float, rod: ea.CosseratRod) -> None:
         """Set up a rod"""
 
         self.E = E
@@ -73,12 +73,11 @@ class ArmEnvironment:
         # Set exponential damper
         # Below damping tuned for time-step 2.5E-4
         damp_coefficient = 0.5e-2  # 0.05
-        density = 1
-        radius_base = self.shearable_rod.radius[0]
+        radius_base = rod.radius[0]
         damping_constant = (
-            damp_coefficient / density / (np.pi * radius_base**2) / 15
+            damp_coefficient / density / (np.pi * radius_base**2) / 15 / 1e3 * 100
         )  # For tapered rod /15 stable
-        self.simulator.dampen(self.shearable_rod).using(
+        self.simulator.dampen(rod).using(
             ea.AnalyticalLinearDamper,
             damping_constant=damping_constant,
             time_step=self.time_step,
@@ -194,10 +193,26 @@ class ArmEnvironment:
             callback_params_list=self.muscle_callback_params_list,
         )
 
-    def reset(self, E: float, rod: ea.CosseratRod) -> None:
+    def reset(self, E: float, density:float, rod: ea.CosseratRod, rigid_body: ea.RigidBodyBase) -> None:
         self.simulator = BaseSimulator()
 
-        self.setup(E, rod)
+        self.setup(E, density, rod)
+        self.simulator.append(rigid_body)
+
+        self.object_list = []
+        self.object_list.append(rod)
+        self.object_list.append(rigid_body)
+
+        # Callback
+        self.post_processing_dict_list = []
+        for rod_id, rod in enumerate(self.object_list):
+            self.post_processing_dict_list.append(defaultdict(list))
+            self.simulator.collect_diagnostics(rod).using(
+                OctopusArmCallBack,
+                step_skip=self.step_skip,
+                callback_params=self.post_processing_dict_list[rod_id],
+            )
+
 
         """ Finalize the simulator and create time stepper """
 
@@ -246,10 +261,60 @@ class ArmEnvironment:
         """
         return time, self.get_systems(), done
 
+    def save_data(self):
+
+        # Save octopus data
+        time = np.array(self.post_processing_dict_list[0]["time"])
+
+        arm_position_history= np.array(
+            self.post_processing_dict_list[0]["position"]
+        )
+        arm_velocity_history = np.array(
+            self.post_processing_dict_list[0]["velocity"]
+        )
+        arm_radius_history = np.array(
+            self.post_processing_dict_list[0]["radius"]
+        )
+        arm_external_force_history = np.array(
+            self.post_processing_dict_list[0]["external_forces"]
+        )
+
+        # Target
+        target_position_history = np.array(
+            self.post_processing_dict_list[1]["position"]
+        )
+        target_velocity_history = np.array(
+            self.post_processing_dict_list[1]["velocity"]
+        )
+        target_radius_history = np.array(
+            self.post_processing_dict_list[1]["radius"]
+        )
+        target_external_force_history = np.array(
+            self.post_processing_dict_list[1]["external_forces"]
+        )
+
+
+        import os
+
+        current_path = os.getcwd()
+        save_folder = os.path.join(current_path, "data")
+        os.makedirs(save_folder, exist_ok=True)
+        np.savez(
+            os.path.join(save_folder, "octopus_arm_body.npz"),
+            time=time,
+            arm_position_history=arm_position_history,
+            arm_velocity_history=arm_velocity_history,
+            arm_radius_history=arm_radius_history,
+            arm_external_force_history = arm_external_force_history,
+            target_position_history=target_position_history,
+            target_velocity_history=target_velocity_history,
+            target_radius_history=target_radius_history,
+            target_external_force_history=target_external_force_history,
+        )
 
 class Environment(ArmEnvironment):
     def get_systems(self) -> list[ea.CosseratRod]:
         return [self.shearable_rod]
 
-    def setup(self, E: float, rod: ea.CosseratRod) -> None:
-        self.set_arm(E, rod)
+    def setup(self, E: float, density:float, rod: ea.CosseratRod) -> None:
+        self.set_arm(E, density, rod)
