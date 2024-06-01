@@ -12,6 +12,7 @@ import logging
 def filter_scalar_field(scalar_field: np.ndarray) -> None:
     ...
 
+
 class PassiveTransportScalarFieldFlowSimulator(FlowSimulator):
     """Class for passive transport flow simulator.
 
@@ -31,7 +32,7 @@ class PassiveTransportScalarFieldFlowSimulator(FlowSimulator):
         time: float = 0.0,
         field_type: Literal["scalar"] = "scalar",
         with_forcing: bool = False,
-        filter_primary_field: bool=False,
+        filter_primary_field: bool = False,
         velocity_field: np.ndarray = np.array([None]),
         **kwargs,
     ) -> None:
@@ -63,8 +64,10 @@ class PassiveTransportScalarFieldFlowSimulator(FlowSimulator):
 
         self.filter_primary_field = filter_primary_field
         if self.filter_primary_field:
-            if grid_dim==2:
-                raise  NotImplemented("Filtering is not implemented for scalar 2D fields.")
+            if grid_dim == 2:
+                raise NotImplemented(
+                    "Filtering is not implemented for scalar 2D fields."
+                )
 
             log = logging.getLogger()
             log.warning(
@@ -191,7 +194,9 @@ class PassiveTransportScalarFieldFlowSimulator(FlowSimulator):
                 # self._gradient_of_field = NotImplemented
                 self._filter_scalar_field = filter_scalar_field
                 if self.filter_primary_field and self.filter_setting_dict is not None:
-                    self.buffer_scalar_field_flux = np.zeros_like(self.buffer_scalar_field)
+                    self.buffer_scalar_field_flux = np.zeros_like(
+                        self.buffer_scalar_field
+                    )
                     self._filter_scalar_field = spne.gen_laplacian_filter_kernel_3d(
                         filter_order=self.filter_setting_dict["order"],
                         filter_flux_buffer=self.buffer_scalar_field_flux,

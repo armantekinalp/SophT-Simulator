@@ -1,8 +1,8 @@
 import elastica as ea
 import click
 import numpy as np
-import sopht.simulator as sps
 import sopht.utils as spu
+import sopht.simulator as sps
 import sys
 
 sys.path.append("/")
@@ -132,7 +132,7 @@ def flow_past_constant_temperature_cylinder_case(
                 thermal_sim.position_field[x_axis_idx],
                 thermal_sim.position_field[y_axis_idx],
                 thermal_sim.primary_field,
-                levels=np.linspace(0, temperature_cylinder * 1.5, 100),
+                levels=np.linspace(0, 10 * 1.5, 100),
                 extend="both",
                 cmap="Blues",
             )
@@ -296,16 +296,16 @@ if __name__ == "__main__":
     @click.command()
     @click.option("--num_threads", default=4, help="Number of threads for parallelism.")
     @click.option(
-        "--sim_grid_size_x", default=512, help="Number of grid points in x direction."
+        "--sim_grid_size_x", default=1024, help="Number of grid points in x direction."
     )
     @click.option(
         "--nondim_final_time",
-        default=400.0,
+        default=10.0,
         help="Non-dimensional final simulation time.",
     )
-    @click.option("--reynolds", default=200.0, help="Reynolds number.")
-    @click.option("--prandtl", default=1.0, help="Prandtl number.")
-    @click.option("--temperature_cylinder", default=10, help="Cylinder temperature.")
+    @click.option("--reynolds", default=500.0, help="Reynolds number.")
+    @click.option("--prandtl", default=500.0, help="Prandtl number.")
+    @click.option("--temperature_cylinder", default=100, help="Cylinder temperature.")
     def simulate_flow_past_constant_temperature_cylinder_case(
         num_threads: int,
         sim_grid_size_x: int,
